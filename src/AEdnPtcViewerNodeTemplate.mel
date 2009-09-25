@@ -1,0 +1,305 @@
+/*
+ *
+ *  AEdnPtcViewerNodeTemplate.mel
+
+ *  $Revision: 18947 $
+ *  $Date: 2009-09-11 14:52:17 +0100 (Fri, 11 Sep 2009) $
+ *  $Author: plp $
+ *
+ */
+
+proc string formatLargeNumber( string $num )
+{
+    string $result = "";
+    string $tmp = $num;
+    int $i = 0;
+    while( $tmp != "" && $i < 10 )
+    {
+        $result = (","+match("[0-9]{1,3}$", $tmp)) + $result;
+        $tmp    = substitute("[0-9]{1,3}$", $tmp, "");
+        $i++;
+    }
+    return substring( $result, 2, 20 );
+}
+
+global proc dnPtcForceAEUpdate()
+{
+    global string   $gAEFocusNode;
+    if ( objExists( $gAEFocusNode ) ) {
+        if ( nodeType($gAEFocusNode) == "transform" ) {
+            string $shapes[] = `listRelatives -c -type dnPtcViewerNode $gAEFocusNode`;
+            if ( $shapes[0] != "" ) updateAE($shapes[0]);
+        } else {
+            updateAE($gAEFocusNode);
+        }
+    }
+}
+
+global proc string dnPtcFileNew( string $nodeAttr  )
+{
+    string $parent = `setParent -q`;
+    string $attribute = `substitute "^.*\\." $nodeAttr ""`;
+    string $uiBase = ( "dnPtcFilename_" + $attribute );
+
+    rowLayout -nc 3 ($uiBase+"Layout");
+    text -l "Point Cloud" ($uiBase+"Label");
+    textField ($uiBase+"Field");
+    symbolButton -image "rexFileOpen.xpm" ($uiBase+"EdBut");
+    setParent ..;
+
+    dnPtcFileReplace( $nodeAttr );
+
+    setParent $parent;
+    return ($uiBase+"Layout");
+}
+
+global proc string dnPtcFileReplace( string $nodeAttr )
+{
+    string $attribute = `substitute "^.*\\." $nodeAttr ""`;
+    string $uiBase = ( "dnPtcFilename_" + $attribute );
+
+    connectControl ($uiBase+"Field") $nodeAttr;
+    string $cmd = "dnPtcPickFile " + $nodeAttr;
+    symbolButton -e -c $cmd ($uiBase+"EdBut");
+
+    return $uiBase+"Layout";
+}
+
+global proc dnPtcPickFileCallback( string $plug, int $picked, string $path, string $mode, string $type )
+{
+    setAttr -type "string" $plug $path;
+}
+
+global proc dnPtcPickFile( string $plug )
+{
+    string $file = `getAttr $plug`;
+    string $dir = `match ".*/" $file`;
+
+    dnFilePicker( $dir,
+                  "dnPtcPickFileCallback \""+$plug+"\"", "open" );
+}
+
+
+global proc dnPtcChannels( string $nodeName )
+{
+    global string $gLastPtcViewerNode;
+    global string $gLastPtcViewerNodeFile;
+
+    string $uip = `setParent -q`;
+    string $ctl = "dnPtcChannelsMenuCtl";
+
+    // create the ctl if need be
+    //
+    if ( ! `optionMenu -q -ex $ctl` ) {
+        string $fl = `formLayout`;
+        optionMenu -l "Channels" $ctl;
+        formLayout -e -af $ctl left 87 $fl;
+        menuItem -l "None";
+        optionMenu -e -sl 1 $ctl;
+        $gLastPtcViewerNode = "";
+    }
+
+    // get comparison vars
+    //
+    string $node = match("^[^\\.]+", $nodeName);
+    string $file = `getAttr ($node+".ptcFile")`;
+    string $channels[] = `getAttr ($node+".channelNames")`;
+
+
+    if ( $nodeName != $gLastPtcViewerNode || $file != $gLastPtcViewerNodeFile )
+    {
+        //trace(" * REFRESH");
+        int $chan = `getAttr $nodeName`;
+        //trace("Channel Value : "+$chan);
+
+        // remove old menu items if need be
+        //
+        string $menuItems[] = `optionMenu -q -ill $ctl`;
+        for ( $mni in $menuItems ) deleteUI $mni;
+        //trace(" * removed old items");
+
+        // add the channel names
+        //
+        int $i = 0;
+        setParent -menu $ctl;
+        for ( $ch in $channels ) {
+            menuItem -l $ch -data $i;
+            //trace(" + "+$ch);
+            $i++;
+        }
+        string $noneMenuItem = `menuItem -l "None"`;
+
+        // connect the ctl to the attr
+        //
+        connectControl $ctl $nodeName;
+
+        // This is fixing a refresh problem on Linux
+        //
+        if ( `optionMenu -q -ni $ctl` > 1 ) deleteUI $noneMenuItem;
+
+        // update globals
+        //
+        $gLastPtcViewerNode = $nodeName;
+        $gLastPtcViewerNodeFile = $file;
+    }
+
+    setParent $uip;
+}
+
+
+global proc dnPtcInfosNew( string $nodeName )
+{
+    string $uip = `setParent -q`;
+
+    formLayout -nd 100 dnPtcInfosL;
+            text -l "Name :"     -al "right" -fn "smallPlainLabelFont"  -w 100 ptcl1;
+            text -l "blah"       -al "left"  -fn "tinyBoldLabelFont"    -w 100 ptcd1;
+            text -l "Points :"   -al "right" -fn "smallPlainLabelFont"  -w 100 ptcl2;
+            text -l "0"          -al "left"  -fn "tinyBoldLabelFont"    -w 100 ptcd2;
+            text -l "Channels :" -al "right" -fn "smallPlainLabelFont"  -w 100 ptcl3;
+            text -l "0"          -al "left"  -fn "tinyBoldLabelFont"    -w 100 ptcd3;
+
+    formLayout  -e
+                -af     ptcl1   top     0
+                -af     ptcl1   left    50
+                -aoc    ptcd1   top     0   ptcl1
+                -ac     ptcd1   left    0   ptcl1
+
+                -ac     ptcl2   top     0   ptcl1
+                -af     ptcl2   left    50
+                -aoc    ptcd2   top     0   ptcl2
+                -ac     ptcd2   left    0   ptcl2
+                -an     ptcd2   right
+
+                -ac     ptcl3   top     0   ptcl2
+                -af     ptcl3   left    50
+                -aoc    ptcd3   top     0   ptcl3
+                -ac     ptcd3   left    0   ptcl3
+                -an     ptcd3   right
+
+                dnPtcInfosL;
+
+    setParent $uip;
+    dnPtcInfosReplace( $nodeName );
+}
+
+global proc dnPtcInfosReplace( string $nodeName )
+{
+    string $node = match("^[^\\.]+", $nodeName);
+
+    // ptc name
+    string $name = `getAttr ($node+".ptcFile")`;
+    $name = match("[^/]+$", $name);
+    text -e -l $name ptcd1;
+
+    // number of points
+    string $num = `getAttr ($node+".numPoints")`;
+    $num = formatLargeNumber($num);
+    string $loaded = `getAttr ($node+".numPointsLoaded")`;
+    $loaded = formatLargeNumber($loaded);
+    text -e -l ($num+"  -  [  "+$loaded+" loaded  ]") ptcd2;
+
+    // number of channels
+    string $nChannels = size( `getAttr ($node+".channelNames")` );
+    text -e -l $nChannels ptcd3;
+}
+
+global proc dnPtcState( string $nodeName )
+{
+    string $node = match("^[^\\.]+", $nodeName);
+
+    if ( `getAttr ($node+".showNormals")` ) {
+        editorTemplate -dimControl $node "normalsSize" false;
+        editorTemplate -dimControl $node "negateNormalsColor" false;
+    } else {
+        editorTemplate -dimControl $node "normalsSize" true;
+        editorTemplate -dimControl $node "negateNormalsColor" true;
+    }
+}
+
+global proc dnPtcBoolean( string $nodeName )
+{
+    string $parent = `setParent -q`;
+    string $attribute = `substitute "^.*\\." $nodeName ""`;
+    string $uiBase = ( "dnPtcBool_" + $attribute );
+    string $ctlLayout = ($uiBase+"Layout");
+
+    if ( !`rowLayout -q -ex $ctlLayout` ) {
+        // NEW
+        rowLayout -nc 2 -cw 2 15 $ctlLayout;
+        text -fn "smallPlainLabelFont" -l (interToUI($attribute));
+        checkBox -l " " ($uiBase+"Field");
+    }
+    // REPLACE
+    setParent $ctlLayout;
+    checkBox -e -cc ("dnPtcState "+$nodeName) ($uiBase+"Field");
+    connectControl ($uiBase+"Field") $nodeName;
+
+    setParent $parent;
+    dnPtcState($nodeName);
+
+}
+
+
+global proc AEdnPtcViewerNodeTemplate( string $nodeName )
+{
+    editorTemplate -beginScrollLayout;
+
+        editorTemplate -callCustom "dnPtcFileNew" "dnPtcFileReplace" "ptcFile";
+
+        editorTemplate -addSeparator;
+
+            editorTemplate -callCustom "dnPtcInfosNew" "dnPtcInfosReplace" "ptcFile";
+            editorTemplate -suppress   "ptcFile";
+
+        editorTemplate -addSeparator;
+
+            editorTemplate -callCustom "dnPtcChannels" "dnPtcChannels" "channel";
+            editorTemplate -addControl "viewAs";
+            editorTemplate -addControl "percentLoaded";
+            editorTemplate -addControl "pointSize";
+            editorTemplate -addControl "exposure";
+            editorTemplate -addControl "invert";
+            editorTemplate -addControl "absoluteValue";
+            editorTemplate -addControl "smooth";
+            editorTemplate -label "Show Values (slow)" -addControl "showValue";
+            editorTemplate -addControl "timeSync";
+            editorTemplate -suppress   "time";
+
+        editorTemplate -beginLayout "Filter" -collapse true;
+            editorTemplate -addControl "filterVariable";
+            editorTemplate -addControl "filterMode";
+            editorTemplate -label "Radius v1" -addControl "filterValf1";
+            editorTemplate -label "Radius v2" -addControl "filterValf2";
+            editorTemplate -label "Channel Value v1" -addControl "filterValc1";
+            editorTemplate -label "Channel Value v2" -addControl "filterValc2";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Crop Box" -collapse false;
+            editorTemplate -addControl "useCropBox";
+            editorTemplate -addControl "cropBoxMin";
+            editorTemplate -addControl "cropBoxMax";
+        editorTemplate -endLayout;
+
+        editorTemplate -beginLayout "Normals" -collapse true;
+            editorTemplate -callCustom "dnPtcBoolean" "dnPtcBoolean" "showNormals";
+            editorTemplate -suppress   "showNormals";
+            editorTemplate -addControl "normalsSize";
+            editorTemplate -addControl "negateNormalsColor";
+        editorTemplate -endLayout;
+
+        editorTemplate -callCustom "dnPtcState" "dnPtcState" "message";
+
+        editorTemplate -beginLayout "Prefs" -collapse true;
+            editorTemplate -addControl "circleSlices";
+            editorTemplate -addControl "diskSlices";
+            editorTemplate -addControl "filterOn";
+        editorTemplate -endLayout;
+
+        editorTemplate -addExtraControls;
+
+
+    editorTemplate -endScrollLayout;
+
+}
+

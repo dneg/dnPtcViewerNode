@@ -1,0 +1,137 @@
+/*
+ *
+ *  dnCameraFrustum.mel
+ *
+ *  $Revision: 14204 $
+ *  $Date: 2009-01-12 15:43:11 +0000 (Mon, 12 Jan 2009) $
+ *  $Author: mpj $
+ *
+ */
+
+
+proc int dnCameraFrustum.areWeLoaded()
+{
+  if ( !`pluginInfo -q -loaded dnCameraFrustum.so` ) {
+    int $failure = catch( loadPlugin( "dnCameraFrustum.so" ) );
+    if ( $failure ) error ("Could not find \"dnCameraFrustum\" plug-in !");
+    return 1;
+  }
+  return 0;
+}
+
+
+global proc dnCameraFrustum()
+{
+  // get selection
+  string $selected[] = `ls -l -sl`;
+
+  // check we are loaded
+  if ( dnCameraFrustum.areWeLoaded() ) {
+    evalDeferred -lp "dnCameraFrustum()";
+    return;
+  }
+
+  string $frustums[] = `ls -l -type dnCameraFrustum`;
+  if ( size( $frustums ) ) delete $frustums;
+
+  select -cl;
+  select $selected;
+  $selected = `ls -l -type transform -sl`;
+  string $selection = "";
+
+
+
+  for ( $selection in $selected ) {
+
+    string $shapes[] = `listRelatives -f -c -shapes $selection`;
+    string $shape = "";
+
+    for ( $shape in $shapes ) {
+
+      if ( nodeType($shape) == "camera" ) {
+
+        if ( `getAttr ($shape+".ncp")` < 0.11 ) setAttr ($shape+".ncp") 0.11;
+        if ( `getAttr ($shape+".ovr")` < 1.10 ) setAttr ($shape+".ovr") 1.10;
+
+        // create nodes
+        //
+        string $frustumShape  = `createNode dnCameraFrustum -n "frustumShape"`;
+        string $frustumTransform[] = `listRelatives -p -pa -type transform $frustumShape`;
+        $frustumTransform = `parent $frustumTransform[0] $selection`;
+        makeIdentity $frustumTransform[0];
+        setAttr -k false ($frustumTransform[0]+".tx");
+        setAttr -k false ($frustumTransform[0]+".ty");
+        setAttr -k false ($frustumTransform[0]+".tz");
+        setAttr -k false ($frustumTransform[0]+".rx");
+        setAttr -k false ($frustumTransform[0]+".ry");
+        setAttr -k false ($frustumTransform[0]+".rz");
+        setAttr -k false ($frustumTransform[0]+".sx");
+        setAttr -k false ($frustumTransform[0]+".sy");
+        setAttr -k false ($frustumTransform[0]+".sz");
+        setAttr -k false ($frustumTransform[0]+".visibility");
+        setAttr -lock true -cb false ($frustumTransform[0]+".tx");
+        setAttr -lock true -cb false ($frustumTransform[0]+".ty");
+        setAttr -lock true -cb false ($frustumTransform[0]+".tz");
+        setAttr -lock true -cb false ($frustumTransform[0]+".rx");
+        setAttr -lock true -cb false ($frustumTransform[0]+".ry");
+        setAttr -lock true -cb false ($frustumTransform[0]+".rz");
+        setAttr -lock true -cb false ($frustumTransform[0]+".sx");
+        setAttr -lock true -cb false ($frustumTransform[0]+".sy");
+        setAttr -lock true -cb false ($frustumTransform[0]+".sz");
+        setAttr -cb false ($frustumTransform[0]+".visibility");
+
+        // make connections
+        connectAttr ($shape+".nearClipPlane")          ($frustumShape+".camNearClipPlane");
+        connectAttr ($shape+".farClipPlane")           ($frustumShape+".camFarClipPlane");
+        connectAttr ($shape+".horizontalFilmAperture") ($frustumShape+".camHorizFilmAperture");
+        connectAttr ($shape+".verticalFilmAperture")   ($frustumShape+".camVertFilmAperture");
+        connectAttr ($shape+".focalLength")            ($frustumShape+".camFocalLength");
+        connectAttr ($shape+".lensSqueezeRatio")       ($frustumShape+".camLensSqueezeRatio");
+        connectAttr ($shape+".horizontalFilmOffset")   ($frustumShape+".camHorizFilmOffset");
+        connectAttr ($shape+".verticalFilmOffset")     ($frustumShape+".camVertFilmOffset");
+        connectAttr ($shape+".focusDistance")          ($frustumShape+".camFocusDistance");
+        connectAttr ($shape+".filmFit")                ($frustumShape+".camFilmFit");
+        expression -s ($frustumShape+".imageAspectRatio = defaultResolution.width / defaultResolution.height;");
+
+
+        // frustumShape settings
+        setAttr -lock true ($frustumShape+".castsShadows")          0;
+        setAttr -lock true ($frustumShape+".receiveShadows")        0;
+        setAttr -lock true ($frustumShape+".motionBlur")            0;
+        setAttr -lock true ($frustumShape+".primaryVisibility")     0;
+        setAttr -lock true ($frustumShape+".visibleInReflections")  0;
+        setAttr -lock true ($frustumShape+".visibleInRefractions")  0;
+        setAttr -type "string" ($frustumShape+".shotName")  (basenameEx(`file -q -sn -shn`));
+        setAttr -k false -cb false ($frustumShape+".localPositionX");
+        setAttr -k false -cb false ($frustumShape+".localPositionY");
+        setAttr -k false -cb false ($frustumShape+".localPositionZ");
+        setAttr -k false -cb false ($frustumShape+".localScaleX");
+        setAttr -k false -cb false ($frustumShape+".localScaleY");
+        setAttr -k false -cb false ($frustumShape+".localScaleZ");
+
+
+        // cam settings
+        setAttr -k true ($shape+".nearClipPlane");
+        setAttr -k true ($shape+".farClipPlane");
+        setAttr -k true ($shape+".overscan");
+        setAttr ($shape+".displayResolution")  1;
+
+
+        // create visibility switch
+        if ( !objExists( ($selection+".showFrustum") ) ) addAttr -at bool -ln showFrustum -dv 1 -k true $selection;
+        connectAttr -f ($selection+".showFrustum") ($frustumShape+".lodVisibility");
+        if ( !objExists( ($selection+".showFocus") ) ) addAttr -at bool -ln showFocus -dv 0 -k true $selection;
+        connectAttr -f ($selection+".showFocus") ($frustumShape+".shadeFocus");
+        if ( !objExists( ($selection+".showMask") ) ) addAttr -at "enum" -enumName "None=0:1.66=1:1.77=2:1.85=3:2.35=4" -ln showMask -dv 0 -k true $selection;
+        connectAttr -f ($selection+".showMask") ($frustumShape+".mask");
+        if ( !objExists( ($selection+".showMaskFrustum") ) ) addAttr -at bool -ln showMaskFrustum -dv 1 -k true $selection;
+        connectAttr -f ($selection+".showMaskFrustum") ($frustumShape+".maskFrustum");
+      }
+    }
+  }
+
+  select -cl;
+  select $selected;
+}
+
+
