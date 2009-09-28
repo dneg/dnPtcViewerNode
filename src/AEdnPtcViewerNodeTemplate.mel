@@ -2,8 +2,8 @@
  *
  *  AEdnPtcViewerNodeTemplate.mel
 
- *  $Revision: 18947 $
- *  $Date: 2009-09-11 14:52:17 +0100 (Fri, 11 Sep 2009) $
+ *  $Revision: 19228 $
+ *  $Date: 2009-09-28 10:59:24 +0100 (Mon, 28 Sep 2009) $
  *  $Author: plp $
  *
  */
@@ -44,7 +44,11 @@ global proc string dnPtcFileNew( string $nodeAttr  )
     rowLayout -nc 3 ($uiBase+"Layout");
     text -l "Point Cloud" ($uiBase+"Label");
     textField ($uiBase+"Field");
-    symbolButton -image "rexFileOpen.xpm" ($uiBase+"EdBut");
+    iconTextButton -w 32 -h 24
+                   -mw 0 -mh 0
+                   -style "iconOnly"
+                   -image "fileOpen.xpm"
+                   ($uiBase+"EdBut");
     setParent ..;
 
     dnPtcFileReplace( $nodeAttr );
@@ -60,7 +64,7 @@ global proc string dnPtcFileReplace( string $nodeAttr )
 
     connectControl ($uiBase+"Field") $nodeAttr;
     string $cmd = "dnPtcPickFile " + $nodeAttr;
-    symbolButton -e -c $cmd ($uiBase+"EdBut");
+    iconTextButton -e -c $cmd ($uiBase+"EdBut");
 
     return $uiBase+"Layout";
 }
@@ -70,13 +74,54 @@ global proc dnPtcPickFileCallback( string $plug, int $picked, string $path, stri
     setAttr -type "string" $plug $path;
 }
 
+global proc int dnPtcPickFileOSSLinuxCallback( string $plug, string $path, string $type )
+{
+    if ( match("\.pt.*$", $path) != "" )
+    {
+        setAttr -type "string" $plug $path;
+        return 1;
+    }
+    else
+    {
+        error("Please select a point cloud file with a 'pt*' suffix.");
+        return 0;
+    }
+}
+
+
 global proc dnPtcPickFile( string $plug )
 {
     string $file = `getAttr $plug`;
     string $dir = `match ".*/" $file`;
 
-    dnFilePicker( $dir,
-                  "dnPtcPickFileCallback \""+$plug+"\"", "open" );
+    if ( 0 )
+    {
+        // At dneg, use our file picker.
+        //
+        dnFilePicker2( $dir,
+                      "dnPtcPickFileCallback \""+$plug+"\"",
+                      "open",
+                      "pt*",
+                      0 );
+    }
+    else
+    {
+        // this branch is for the OSS version
+        // of dnPtcViewerNode
+        //
+        if ( `about -linux` )
+        {
+            fileBrowser( ("dnPtcPickFileOSSLinuxCallback \""+$plug+"\""), "Load", "*", 0);
+        }
+        else if ( `about -macOS` )
+        {
+            warning("No OSX file browser implemented yet.");
+        }
+        else if ( `about -windows` )
+        {
+            warning("No Windows file browser implemented yet.");
+        }
+    }
 }
 
 
