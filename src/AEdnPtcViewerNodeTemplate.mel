@@ -2,8 +2,8 @@
  *
  *  AEdnPtcViewerNodeTemplate.mel
 
- *  $Revision: 19228 $
- *  $Date: 2009-09-28 10:59:24 +0100 (Mon, 28 Sep 2009) $
+ *  $Revision: 19275 $
+ *  $Date: 2009-09-30 17:45:52 +0100 (Wed, 30 Sep 2009) $
  *  $Author: plp $
  *
  */
@@ -71,10 +71,11 @@ global proc string dnPtcFileReplace( string $nodeAttr )
 
 global proc dnPtcPickFileCallback( string $plug, int $picked, string $path, string $mode, string $type )
 {
-    setAttr -type "string" $plug $path;
+    if ( $picked )
+        setAttr -type "string" $plug $path;
 }
 
-global proc int dnPtcPickFileOSSLinuxCallback( string $plug, string $path, string $type )
+global proc int dnPtcPickFileOSSCallback( string $plug, string $path, string $type )
 {
     if ( match("\.pt.*$", $path) != "" )
     {
@@ -94,33 +95,16 @@ global proc dnPtcPickFile( string $plug )
     string $file = `getAttr $plug`;
     string $dir = `match ".*/" $file`;
 
-    if ( 0 )
-    {
-        // At dneg, use our file picker.
-        //
-        dnFilePicker2( $dir,
-                      "dnPtcPickFileCallback \""+$plug+"\"",
-                      "open",
-                      "pt*",
-                      0 );
-    }
-    else
+    // At dneg, use our file picker.
+    //
+    int $notAtDneg = catchQuiet( dnFilePicker2( $dir,("dnPtcPickFileCallback \""+$plug+"\""),"open","pt*",0 ) );
+
+    if ( $notAtDneg )
     {
         // this branch is for the OSS version
         // of dnPtcViewerNode
         //
-        if ( `about -linux` )
-        {
-            fileBrowser( ("dnPtcPickFileOSSLinuxCallback \""+$plug+"\""), "Load", "*", 0);
-        }
-        else if ( `about -macOS` )
-        {
-            warning("No OSX file browser implemented yet.");
-        }
-        else if ( `about -windows` )
-        {
-            warning("No Windows file browser implemented yet.");
-        }
+        fileBrowser( ("dnPtcPickFileOSSCallback \""+$plug+"\""), "Load", "*", 0);
     }
 }
 
