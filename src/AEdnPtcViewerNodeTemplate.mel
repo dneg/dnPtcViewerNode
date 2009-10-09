@@ -2,8 +2,8 @@
  *
  *  AEdnPtcViewerNodeTemplate.mel
 
- *  $Revision: 19275 $
- *  $Date: 2009-09-30 17:45:52 +0100 (Wed, 30 Sep 2009) $
+ *  $Revision: 19519 $
+ *  $Date: 2009-10-09 16:42:18 +0100 (Fri, 09 Oct 2009) $
  *  $Author: plp $
  *
  */
@@ -26,10 +26,13 @@ global proc dnPtcForceAEUpdate()
 {
     global string   $gAEFocusNode;
     if ( objExists( $gAEFocusNode ) ) {
-        if ( nodeType($gAEFocusNode) == "transform" ) {
+        if ( nodeType($gAEFocusNode) == "transform" )
+        {
             string $shapes[] = `listRelatives -c -type dnPtcViewerNode $gAEFocusNode`;
             if ( $shapes[0] != "" ) updateAE($shapes[0]);
-        } else {
+        }
+        else if ( nodeType($gAEFocusNode) == "dnPtcViewerNode" )
+        {
             updateAE($gAEFocusNode);
         }
     }
@@ -137,7 +140,7 @@ global proc dnPtcChannels( string $nodeName )
 
     if ( $nodeName != $gLastPtcViewerNode || $file != $gLastPtcViewerNodeFile )
     {
-        //trace(" * REFRESH");
+        //trace("\n * REFRESH");
         int $chan = `getAttr $nodeName`;
         //trace("Channel Value : "+$chan);
 
@@ -152,15 +155,17 @@ global proc dnPtcChannels( string $nodeName )
         int $i = 0;
         setParent -menu $ctl;
         for ( $ch in $channels ) {
-            menuItem -l $ch -data $i;
-            //trace(" + "+$ch);
+            menuItem -p $ctl -l $ch -data $i;
+            //trace(" + "+$ch+"  "+$i);
             $i++;
         }
-        string $noneMenuItem = `menuItem -l "None"`;
+        string $noneMenuItem = `menuItem -p $ctl -l "None" -data $i`;
 
         // connect the ctl to the attr
         //
-        connectControl $ctl $nodeName;
+        optionMenu -e -sl (++$i) $ctl;
+        evalDeferred("connectControl "+$ctl+" "+$nodeName);
+        //trace(" + Connect to "+$nodeName);
 
         // This is fixing a refresh problem on Linux
         //
@@ -236,8 +241,17 @@ global proc dnPtcInfosReplace( string $nodeName )
 global proc dnPtcState( string $nodeName )
 {
     string $node = match("^[^\\.]+", $nodeName);
+    string $currentChannel = "None";
+    if ( `optionMenu -q -ex dnPtcChannelsMenuCtl` )
+    {
+        $currentChannel = `optionMenu -q -v dnPtcChannelsMenuCtl`;
+    }
+    int $isVector    = gmatch( $currentChannel, "vector *");
+    int $isNormal    = gmatch( $currentChannel, "normal *");
+    int $showNormals = `getAttr ($node+".showNormals")`;
 
-    if ( `getAttr ($node+".showNormals")` ) {
+    if ( $showNormals || $isVector || $isNormal )
+    {
         editorTemplate -dimControl $node "normalsSize" false;
         editorTemplate -dimControl $node "negateNormalsColor" false;
     } else {

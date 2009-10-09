@@ -165,15 +165,17 @@ dnPtcViewerNode::~dnPtcViewerNode()
 {
 	resetDisplayList( m_bboxID );
 	resetDisplayList( m_cropboxID );
-	resetDisplayList( m_diskID );
 	resetDisplayList( m_ptcID );
+	resetDisplayList( m_diskID );
 
 	if(m_quadricObj == NULL) gluDeleteQuadric(m_quadricObj);
+}
 
-	if ( m_pts.length() > 0 ) m_pts.setLength(0);
-	if ( m_ptsColor.length() > 0 ) m_ptsColor.setLength(0);
-	if ( m_ptsNormal.length() > 0 ) m_ptsNormal.setLength(0);
-	if ( m_ptsRadius.length() > 0 ) m_ptsRadius.setLength(0);
+
+void dnPtcViewerNode::postConstructor()
+{
+  MFnDependencyNode nodeFn(thisMObject());
+  nodeFn.setName("ptcViewerShape#");
 }
 
 
@@ -387,10 +389,10 @@ MStatus dnPtcViewerNode::compute( const MPlug& plug, MDataBlock& data )
 
 				// file does not exist
 				m_ptcFile = "";
-				m_pts.setLength(0);
-				m_ptsColor.setLength(0);
-				m_ptsNormal.setLength(0);
-				m_ptsRadius.setLength(0);
+				m_pts.clear();
+				m_ptsColor.clear();
+				m_ptsNormal.clear();
+				m_ptsRadius.clear();
 				ERR("point cloud does not exist");
 
 			}
@@ -449,8 +451,8 @@ MStatus dnPtcViewerNode::compute( const MPlug& plug, MDataBlock& data )
 	compute_cropBox_world();
 	resetDisplayList( m_bboxID );
 	resetDisplayList( m_cropboxID );
-	resetDisplayList( m_diskID );
 	resetDisplayList( m_ptcID );
+	resetDisplayList( m_diskID );
 
 	return returnStatus;
 }
@@ -1558,10 +1560,10 @@ MStatus dnPtcViewerNode::loadPtc()
 
 	// clear the arrays
 	//
-	m_pts.setLength(0);
-	m_ptsColor.setLength(0);
-	m_ptsNormal.setLength(0);
-	m_ptsRadius.setLength(0);
+	m_pts.clear();
+	m_ptsColor.clear();
+	m_ptsNormal.clear();
+	m_ptsRadius.clear();
 
 	#ifdef _DEBUG
 	cout <<"m_cropBox = "<<m_cropBox.min()<<" "<<m_cropBox.max()<<endl;
@@ -1750,7 +1752,7 @@ MStatus dnPtcViewerNode::loadPtc()
 //
 MStatus initializePlugin( MObject obj )
 {
-	char *version = "$Revision: 19199 $";
+	char *version = "$Revision: 19518 $";
 	char ver[16];
 	sscanf(version, "$Revision: %s",ver);
 
