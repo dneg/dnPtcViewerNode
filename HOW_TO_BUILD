@@ -1,0 +1,50 @@
+Building requires CMake 2.6 or later.
+
+After installing CMake, you only need to decide three more things:
+1. Where the Maya you build against is located.
+2. Which RenderMan compliant renderer you want to build against.
+   Currently supported are 3Delight & PRMan. Support for the Pixie
+   renderer will come soon. This is optional (see below).
+3. Where to install the resulting plugins, MEL scripts & icons.
+
+   
+1. is set through a variable called MAYA_DIR. This is the root
+folder of your Maya installation and requires the Maya Development Kit
+to be present, in the default location.
+
+2. is set through a variable called RMAN. Supported values are
+"3delight" and "prman". If this is omitted, "prman" is used.
+
+3. is the output location for the install target, when invoked.
+This uses the default variable, CMAKE_INSTALL_PREFIX. So if you don't
+set this, it will use your platform's default (e.g. /usr/local, on
+CMake Linux).
+
+
+A typical build session for a Bourne shell would look something like
+this:
+
+  export MAYA_DIR=/usr/autodesk/maya2010-x64
+  cmake -DCMAKE_INSTALL_PREFIX=$MAYA_DIR -DMAYA_DIR=$MAYA_DIR .
+  make
+  sudo make install
+
+
+However, to allow using specific install locations three additional
+variables are supported:
+
+  MAYA_PLUGIN_DIR
+  MAYA_SCRIPT_DIR
+  MAYA_ICON_DIR
+
+
+If omitted, these just inherit their locations from
+CMAKE_INSTALL_PREFIX:
+
+  MAYA_PLUGIN_DIR = $CMAKE_INSTALL_PREFIX/bin/plug-ins
+  MAYA_SCRIPT_DIR = $CMAKE_INSTALL_PREFIX/scripts/others
+  MAYA_ICON_DIR   = $CMAKE_INSTALL_PREFIX/icons  
+
+
+This has so far been tested with CMake 2.6 on Linux 64. Mail questions
+regarding this build system to Moritz Moeller (cmake@virtualritz.com).
