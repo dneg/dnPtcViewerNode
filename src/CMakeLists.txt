@@ -62,6 +62,9 @@ include_directories(
     ${Maya_INCLUDE_DIR}
     ${RMAN_INCLUDE_DIR} )
 
+# Maya module file creation #
+file(WRITE ${CMAKE_BINARY_DIR}/dnPtcViewerNode.mod "+ dnPtcViewerNode any ${CMAKE_INSTALL_PREFIX}\n")
+
 ########### next target #################
 
 set( dnPtcViewerNode_LIB_SRCS
@@ -78,7 +81,10 @@ target_link_libraries( dnPtcViewerNode ${Maya_LIBRARIES} ${RMAN_LIBRARY} )
 
 install( TARGETS dnPtcViewerNode
     LIBRARY
-        DESTINATION bin/plug-ins )
+        DESTINATION plug-ins )
 
 install( FILES AEdnPtcViewerNodeTemplate.mel
-    DESTINATION scripts/others )
+    DESTINATION scripts )
+
+install ( FILES ${CMAKE_BINARY_DIR}/dnPtcViewerNode.mod
+  DESTINATION ${CMAKE_INSTALL_PREFIX})
