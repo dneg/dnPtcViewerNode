@@ -14,7 +14,13 @@ endif()
 
 if( CMAKE_SYSTEM_NAME STREQUAL "Darwin" )        # MacOS
 
-    add_definitions( -Dfoo ) # TODO
+    add_definitions(
+      -DMAC_PLUGIN
+      -DREQUIRE_IOSTREAM
+      -DOSMac_
+      -DOSMac_MachO_
+      -D_BOOL
+      )
     
 elseif( CMAKE_SYSTEM_NAME STREQUAL "Linux" )     # Linux
 
@@ -33,7 +39,7 @@ elseif( CMAKE_SYSTEM_NAME STREQUAL "Windows" )   # Windows
 endif()
 
 
-#find_package( OpenGL REQUIRED ) # seems to work w/o this
+find_package( OpenGL REQUIRED ) # required on OS X
 # libGLU is provided by Maya
 
 set( Maya_DIR ../cmake )
@@ -62,6 +68,9 @@ include_directories(
     ${Maya_INCLUDE_DIR}
     ${RMAN_INCLUDE_DIR} )
 
+# Maya module file creation #
+file(WRITE ${CMAKE_BINARY_DIR}/dnPtcViewerNode.mod "+ dnPtcViewerNode any ${CMAKE_INSTALL_PREFIX}\n")
+
 ########### next target #################
 
 set( dnPtcViewerNode_LIB_SRCS
@@ -71,14 +80,24 @@ set( dnPtcViewerNode_LIB_SRCS
 add_library( dnPtcViewerNode MODULE ${dnPtcViewerNode_LIB_SRCS} )
 # omit "lib" prefix from output
 set_target_properties( dnPtcViewerNode PROPERTIES PREFIX "" ) 
-
-target_link_libraries( dnPtcViewerNode ${Maya_LIBRARIES} ${RMAN_LIBRARY} )
+if (APPLE)
+  set_target_properties( dnPtcViewerNode PROPERTIES SUFFIX ".bundle" ) 
+elseif (WIN32)
+  set_target_properties( dnPtcViewerNode PROPERTIES SUFFIX ".mll" ) 
+endif (APPLE)
+target_link_libraries( dnPtcViewerNode ${Maya_LIBRARIES} ${RMAN_LIBRARY} 
+  ${OPENGL_gl_LIBRARY}
+  ${OPENGL_glu_LIBRARY}
+  )
     
 ########### install files ###############
 
 install( TARGETS dnPtcViewerNode
     LIBRARY
-        DESTINATION bin/plug-ins )
+        DESTINATION plug-ins )
 
 install( FILES AEdnPtcViewerNodeTemplate.mel
-    DESTINATION scripts/others )
+    DESTINATION scripts )
+
+install ( FILES ${CMAKE_BINARY_DIR}/dnPtcViewerNode.mod
+  DESTINATION ${CMAKE_INSTALL_PREFIX})
