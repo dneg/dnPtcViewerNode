@@ -10,7 +10,11 @@
 #include <maya/MStringArray.h>
 #include <maya/MTime.h>
 
+#ifdef __APPLE__
+#include <OpenGL/glu.h>
+#else // __APPLE__
 #include <GL/glu.h>
+#endif // __APPLE__
 
 
 #define USE_CALLBACKS 0
